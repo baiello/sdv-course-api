@@ -3,11 +3,13 @@
 namespace App\Controller;
 
 use App\Entity\Classroom;
+use App\Message\EmailNotification;
 use App\Repository\ClassroomRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\SerializerInterface;
@@ -33,10 +35,13 @@ class ClassroomController extends AbstractController
         Request $request,
         SerializerInterface $serializer,
         ClassroomRepository $classroomRepository,
+        MessageBusInterface $bus,
     ): JsonResponse
     {
         $classroom = $serializer->deserialize($request->getContent(), Classroom::class, 'json');
         $classroomRepository->save($classroom, true);
+
+        $bus->dispatch(new EmailNotification('The classroom '.$classroom->getName().' has been created!'));
 
         return $this->json($classroom, Response::HTTP_CREATED);
     }
