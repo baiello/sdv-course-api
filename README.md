@@ -96,3 +96,24 @@ Types de "Authorization Grant" :
 * **Password :** C'est comme donner ton nom d'utilisateur et ton mot de passe directement à une application pour qu'elle puisse obtenir un jeton d'accès et accéder à tes informations de compte. Cependant, ce type de grant doit être utilisé avec précaution car il peut présenter des risques de sécurité.
 * **Client grant :** C'est comme accorder à une application de confiance un accès permanent à certaines informations de ton compte, en utilisant ses propres informations d'identification. Cela évite d'avoir à te reconnecter à chaque utilisation de l'application.
 
+### 4.3 Configuration du flux d'authorisation OAuth2
+
+**Objectif :** Mettre en place un flux d'authorisation OAuth2 pour autoriser un utilisateur à accéder à une resource via un client API enregistré (Postman).
+
+![OAuth2 flow](https://i.ibb.co/X52MZzw/oauth2-flow.png)
+
+**Ajout d'un client API**
+
+```text
+php bin/console league:oauth2-server:create-client postman --scope=email --grant-type=authorization_code --redirect-uri=https://oauth.pstmn.io/v1/callback
+```
+
+**Protection de la route `/authorize`**
+
+```text
+
+composer require symfony/validator
+composer require symfony/form
+composer require symfonycasts/verify-email-bundle
+php bin/console make:registration-form
+```

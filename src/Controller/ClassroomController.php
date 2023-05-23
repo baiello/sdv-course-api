@@ -9,8 +9,10 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\SerializerInterface;
 
+#[IsGranted("ROLE_OAUTH2_EMAIL")]
 class ClassroomController extends AbstractController
 {
     #[Route('/classrooms', name: 'app_classroom_list', methods: ['GET'])]
