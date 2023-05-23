@@ -218,7 +218,48 @@ security:
         - { path: ^/authorize, roles: IS_AUTHENTICATED_REMEMBERED }
 ```
 
+**Protection d'une resource via OAuth2**
+
+2 actions vont devoir être réalisées pour protéger nos resources :
+* Configurer le firewall pour que l'authentification par token d'accès soit activé sur les routes choisies
+* Configurer les routes, ou patterns de route, pour définir les critères d'accès
+
+Dans le cadre de cet exercice, nous allons nous concentrer sur la protection des routes `/clasrooms...`.
+
+```yaml
+# config/packages/security.yaml
+security:
+    # ...
+    firewalls:
+        # ...
+        api:
+            pattern: ^/classrooms
+            security: true
+            stateless: true
+            oauth2: true
+        main: # En dernière position dans la liste des firewalls
+            # ...
+```
+
+```php
+// src/Controller/ClassroomController
+use Symfony\Component\Security\Http\Attribute\IsGranted;
+
+#[IsGranted("ROLE_OAUTH2_EMAIL")]
+class ClassroomController extends AbstractController
+```
+
 **Récupération d'un token d'accès via Postman**
+
+Dans Postman, sur une requête protégée, nous pouvons nous placer dans l'onglet "Authorization" et sélectionner `OAuth2`.
+
+Nous allons ensuite remplir les informations pour demander un nouveau token d'accès :
+
+![Postman](https://i.ibb.co/DtTDR09/Screenshot-2023-05-23-at-14-30-55.png)
+
+Si tout va bien, une fenêtre s'ouvrira nous demandans de nous authentifier :
+
+![Postman](https://i.ibb.co/TgcPNJY/Screenshot-2023-05-23-at-14-31-46.png)
 
 De base, oauth2-server-bundle refuse toutes les autorisations : c'est à nous d'implémenter la logique permettant de valider une authorisation.
 Dans un flux complet, un formulaire permettant de valider l'accès d'une application à vos données utilisateurs.
@@ -261,13 +302,8 @@ class AuthorizationRequestResolveSubscriber implements EventSubscriberInterface
 }
 ```
 
-**Protection d'une resource via OAuth2**
-
-2 actions vont devoir être réalisées pour protéger nos resources :
-* Configurer le firewall pour que l'authentification par token d'accès soit activé sur les routes choisies
-* Configurer les routes, ou patterns de route, pour définir les critères d'accès
-
-Dans le cadre de cet exercice, nous allons nous concentrer sur la protection des routes `/clasrooms...`.
+Dernier petite configuration à faire : la route `/token` est protégée.
+Nous devons l'ouvrir :
 
 ```yaml
 # config/packages/security.yaml
@@ -275,19 +311,13 @@ security:
     # ...
     firewalls:
         # ...
+        api_token:
+            pattern: ^/token$
+            security: false
         api:
-            pattern: ^/classrooms
-            security: true
-            stateless: true
-            oauth2: true
+            #...
         main: # En dernière position dans la liste des firewalls
             # ...
 ```
 
-```php
-// src/Controller/ClassroomController
-use Symfony\Component\Security\Http\Attribute\IsGranted;
-
-#[IsGranted("ROLE_OAUTH2_EMAIL")]
-class ClassroomController extends AbstractController
-```
+Et voilà !
