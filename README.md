@@ -217,3 +217,77 @@ security:
     access_control:
         - { path: ^/authorize, roles: IS_AUTHENTICATED_REMEMBERED }
 ```
+
+**Récupération d'un token d'accès via Postman**
+
+De base, oauth2-server-bundle refuse toutes les autorisations : c'est à nous d'implémenter la logique permettant de valider une authorisation.
+Dans un flux complet, un formulaire permettant de valider l'accès d'une application à vos données utilisateurs.
+Par soucis de temps, nous allons forcer programmatiquement cette validation.
+
+Le bundle oauth2-server-bundle envoit un évènement avant toute complétude de la validation.
+Nous pouvons donc souscrire à cet évènement pour effectuer des actions, notamment forcer cette validation à passer.
+
+Création d'un event subscriber dans Symfony :
+
+```text
+php bin/console make:subscriber AuthorizationRequestResolveSubscriber
+
+What event do you want to subscribe to?:
+league.oauth2_server.event.authorization_request_resolve
+```
+
+```php
+// src/EventSubscriber/AuthorizationRequestResolveSubscriber
+<?php
+
+namespace App\EventSubscriber;
+
+use League\Bundle\OAuth2ServerBundle\Event\AuthorizationRequestResolveEvent;
+use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+
+class AuthorizationRequestResolveSubscriber implements EventSubscriberInterface
+{
+    public function onLeagueOauth2ServerEventAuthorizationRequestResolve(AuthorizationRequestResolveEvent $event): void
+    {
+        $event->resolveAuthorization(true);
+    }
+
+    public static function getSubscribedEvents(): array
+    {
+        return [
+            'league.oauth2_server.event.authorization_request_resolve' => 'onLeagueOauth2ServerEventAuthorizationRequestResolve',
+        ];
+    }
+}
+```
+
+**Protection d'une resource via OAuth2**
+
+2 actions vont devoir être réalisées pour protéger nos resources :
+* Configurer le firewall pour que l'authentification par token d'accès soit activé sur les routes choisies
+* Configurer les routes, ou patterns de route, pour définir les critères d'accès
+
+Dans le cadre de cet exercice, nous allons nous concentrer sur la protection des routes `/clasrooms...`.
+
+```yaml
+# config/packages/security.yaml
+security:
+    # ...
+    firewalls:
+        # ...
+        api:
+            pattern: ^/classrooms
+            security: true
+            stateless: true
+            oauth2: true
+        main: # En dernière position dans la liste des firewalls
+            # ...
+```
+
+```php
+// src/Controller/ClassroomController
+use Symfony\Component\Security\Http\Attribute\IsGranted;
+
+#[IsGranted("ROLE_OAUTH2_EMAIL")]
+class ClassroomController extends AbstractController
+```
