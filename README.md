@@ -110,10 +110,110 @@ php bin/console league:oauth2-server:create-client postman --scope=email --grant
 
 **Protection de la route `/authorize`**
 
-```text
+Dans le flux OAuth2, la route `/authorize` doit être accessible uniquement aux utilisateurs connectés (authentifiés) à notre serveur d'authorisation.
+Nous allons donc lui ajouter des capacités de gestion et de connexion d'utilisateur, en utilisant [les fonctionnalités de Symfony](https://symfony.com/doc/current/security.html).
 
+```text
+composer require symfony/security-bundle
+php bin/console make:user
+php bin/console make:migration
+php bin/console doctrine:migrations:migrate
+```
+
+Si on le souhaite (c'est facultatif), on peut créer un formulaire d'enregistrement d'utilisateur.
+Ce formulaire servira uniquement à créer des utilisateurs en bdd, il n'impactera pas notre flux OAuth2.
+Les commandes suivantes génèreront donc ce formulaire, qui sera accessible sur la route `/register`.
+
+```text
 composer require symfony/validator
 composer require symfony/form
 composer require symfonycasts/verify-email-bundle
 php bin/console make:registration-form
+```
+
+Maintenant que nous pouvons créer et gérer des utilisateurs dans notre serveur d'authorisation, nous allons créer un process de login par formulaire.
+C'est du pur Symfony, donc nous aurons besoin d'une route `/login` (via un LoginController), d'un formulaire de login à afficher, et d'adapter la configuration du firewall.
+
+Création du LoginController ([Doc ici](https://symfony.com/doc/current/security.html#form-login)) :
+
+```text
+php bin/console make:controller Login
+```
+
+```php
+// LoginController
+<?php
+
+namespace App\Controller;
+
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
+
+class LoginController extends AbstractController
+{
+    #[Route('/login', name: 'app_login')]
+    public function index(AuthenticationUtils $authenticationUtils): Response
+    {
+        $error = $authenticationUtils->getLastAuthenticationError();
+        $lastUsername = $authenticationUtils->getLastUsername();
+
+        return $this->render('login/index.html.twig', [
+            'last_username' => $lastUsername,
+            'error' => $error,
+        ]);
+    }
+}
+```
+
+```twig
+{# templates/login/index.html.twig #}
+{% extends 'base.html.twig' %}
+
+{# ... #}
+
+{% block body %}
+    {% if error %}
+        <div>{{ error.messageKey|trans(error.messageData, 'security') }}</div>
+    {% endif %}
+
+    <form action="{{ path('app_login') }}" method="post">
+        <label for="username">Email:</label>
+        <input type="text" id="username" name="_username" value="{{ last_username }}">
+
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="_password">
+
+        {# If you want to control the URL the user is redirected to on success
+        <input type="hidden" name="_target_path" value="/account"> #}
+
+        <button type="submit">login</button>
+    </form>
+{% endblock %}
+```
+
+```yaml
+# config/packages/security.yaml
+security:
+    # ...
+    firewalls:
+        # ...
+        main: # En dernière position dans la liste des firewalls
+            # ...
+            form_login:
+                login_path: app_login
+                check_path: app_login
+```
+
+Avec cela, toutes les routes (non traitées par les autres firewalls) nécessitant une authentification, seront redirigées automatiquement vers le formulaire de login.
+Précisons donc que notre route `/authorize`, nécessite d'être appelée par un utilisateur connecté.
+Cela se jouera dans les contrôles d'accès :
+
+```yaml
+# config/packages/security.yaml
+security:
+    # ...
+    access_control:
+        - { path: ^/authorize, roles: IS_AUTHENTICATED_REMEMBERED }
 ```
